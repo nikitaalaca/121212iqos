@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Whack (Mini App)</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div id="topbar">
+    <div class="pill">⏱ <span id="time">30</span>s</div>
+    <div class="pill">⭐ <span id="score">0</span></div>
+    <div class="pill" id="mult">x1</div>
+    <div class="pill" id="best">BEST: 0</div>
+    <div class="pill" id="combo">COMBO: 0</div>
+  </div>
+  <div id="progress"><div id="progressFill"></div></div>
+
+  <canvas id="c"></canvas>
+
+  <div id="bottombar">
+    <button id="start" class="btn primary">Играть</button>
+    <button id="sound" class="btn">Звук: ON</button>
+    <button id="haptic" class="btn">Вибро: ON</button>
+    <button id="scream" class="btn">Скримеры: ON</button>
+    <button id="quality" class="btn">Качество: MAX</button>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

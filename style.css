@@ -1,0 +1,78 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #0f0f12;
+  color: #fff;
+  font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial;
+}
+
+#topbar, #bottombar {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.38);
+  backdrop-filter: blur(10px);
+}
+
+#topbar { flex-wrap: wrap; }
+#bottombar { justify-content: center; }
+
+.pill{
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.12);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  user-select: none;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: calc(100% - 118px);
+  touch-action: none;
+  background: radial-gradient(1200px 900px at 50% 20%, rgba(255,255,255,0.06), rgba(0,0,0,0) 60%),
+              radial-gradient(900px 700px at 70% 60%, rgba(255,255,255,0.04), rgba(0,0,0,0) 55%),
+              linear-gradient(180deg, #2a1a12, #1f140f 45%, #120c09);
+}
+
+.btn{
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn.primary{
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,255,255,0.22);
+}
+
+
+#progress{
+  height: 6px;
+  margin: 0 12px 10px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.10);
+  overflow: hidden;
+}
+
+#progressFill{
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.40);
+}
