@@ -64,26 +64,64 @@
     })));
   }
 
+  // --- IMPORTANT: robust resize for iOS/Telegram ---
   function resize() {
     // clamp DPR for performance but keep crisp
     const raw = window.devicePixelRatio || 1;
     dpr = Math.max(1, Math.min(2, raw)); // cap at 2 for stability
-    W = Math.floor(canvas.clientWidth * dpr);
-    H = Math.floor(canvas.clientHeight * dpr);
-    canvas.width = W; canvas.height = H;
-    scene.width = W; scene.height = H;
-    bloom.width = W; bloom.height = H;
-    prev.width = W; prev.height = H;
+
+    // canvas MUST have correct CSS height via flex (style.css).
+    // Here we trust clientWidth/clientHeight.
+    const cw = Math.max(1, Math.floor(canvas.clientWidth));
+    const ch = Math.max(1, Math.floor(canvas.clientHeight));
+
+    W = Math.floor(cw * dpr);
+    H = Math.floor(ch * dpr);
+
+    if (canvas.width !== W) canvas.width = W;
+    if (canvas.height !== H) canvas.height = H;
+
+    if (scene.width !== W) scene.width = W;
+    if (scene.height !== H) scene.height = H;
+
+    if (bloom.width !== W) bloom.width = W;
+    if (bloom.height !== H) bloom.height = H;
+
+    if (prev.width !== W) prev.width = W;
+    if (prev.height !== H) prev.height = H;
   }
-  window.addEventListener("resize", resize);
-  // Telegram: при изменении viewport пересчитать canvas
-const tg = window.Telegram?.WebApp;
-if (tg?.onEvent) {
-  tg.onEvent("viewportChanged", () => {
-    // важно: сначала браузеру дать применить новую высоту
-    requestAnimationFrame(() => resize());
+
+  window.addEventListener("resize", () => {
+    requestAnimationFrame(() => {
+      resize();
+      // iOS иногда меняет layout в 2 шага
+      requestAnimationFrame(resize);
+    });
   });
-}
+
+  // Telegram: viewportChanged (клавиатура/панели/свайпы меняют высоту)
+  if (tg?.onEvent) {
+    tg.onEvent("viewportChanged", () => {
+      requestAnimationFrame(() => {
+        resize();
+        requestAnimationFrame(resize);
+      });
+    });
+  }
+
+  // iOS Safari visualViewport тоже может менять высоту
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", () => {
+      requestAnimationFrame(() => {
+        resize();
+        requestAnimationFrame(resize);
+      });
+    });
+    window.visualViewport.addEventListener("scroll", () => {
+      // иногда Telegram дергает scroll в visualViewport -> пересчёт
+      requestAnimationFrame(resize);
+    });
+  }
 
   // ---- Sound (tiny synth) ----
   let audioCtx = null;
@@ -132,7 +170,7 @@ if (tg?.onEvent) {
 
   // ---- State ----
   let running = false;
-  const durationMs = 40_000; // longer & more "premium"
+  const durationMs = 40_000;
   let timeLeft = durationMs;
   let lastTs = 0;
 
@@ -157,10 +195,6 @@ if (tg?.onEvent) {
   let chroma = 0;
   let chromaUntil = 0;
 
-  // impact ripple (fake lens warp)
-  let rippleUntil = 0;
-  let rippleX = 0, rippleY = 0;
-
   // slowmo
   let slowMoUntil = 0;
 
@@ -184,7 +218,7 @@ if (tg?.onEvent) {
     justHit: 0,
     ring: 0,
     ringVel: 0,
-    idle: Math.random()*10,
+    idle: Math.random() * 10,
   }));
 
   // toggles
@@ -215,7 +249,6 @@ if (tg?.onEvent) {
     const total = base * multiplier;
     score += total;
     scoreEl.textContent = String(score);
-
     texts.push({ x, y, vy: -0.11*dpr, life: 1100, t: 0, text: `+${total}`, big: total >= 70 });
   }
 
@@ -277,7 +310,6 @@ if (tg?.onEvent) {
   }
 
   function update(dt, ts){
-    // slowmo short
     const slow = (ts < slowMoUntil) ? 0.55 : 1.0;
     dt *= slow;
 
@@ -318,7 +350,6 @@ if (tg?.onEvent) {
   }
 
   function drawBackground(ts){
-    // layered moving lights (video vibe)
     const g1 = sctx.createRadialGradient(W*0.5, H*0.18, Math.min(W,H)*0.08, W*0.5, H*0.18, Math.max(W,H)*0.95);
     g1.addColorStop(0, "rgba(255,255,255,0.065)");
     g1.addColorStop(1, "rgba(0,0,0,0)");
@@ -397,15 +428,14 @@ if (tg?.onEvent) {
           const hh = popSize*2.08*pop;
           const yy = cy - hh + holeSize*0.28 + bob;
 
-          // shadow
           sctx.save();
           sctx.globalAlpha = 0.35;
           sctx.filter = "blur(8px)";
           sctx.drawImage(img.iqos, cx-w/2+10*dpr, yy+16*dpr, w, hh);
           sctx.restore();
 
-          // subtle shine stripe
           sctx.drawImage(img.iqos, cx-w/2, yy, w, hh);
+
           sctx.save();
           sctx.globalAlpha = 0.10;
           sctx.fillStyle = "rgba(255,255,255,1)";
@@ -418,7 +448,6 @@ if (tg?.onEvent) {
           const hh = popSize*1.00*pop;
           const yy = cy - hh + holeSize*0.20 + bob*0.6;
 
-          // glow + slight rotation
           const rot = Math.sin(h.idle*5.4) * 0.03 * pop;
           sctx.save();
           sctx.translate(cx, yy + hh*0.55);
@@ -486,8 +515,9 @@ if (tg?.onEvent) {
   }
 
   function present(ts){
-    // bloom (blur scene)
     const q = QUALITY[quality];
+
+    // bloom (blur scene)
     bctx.clearRect(0,0,W,H);
     bctx.save();
     bctx.globalAlpha = q.bloomAlpha;
@@ -547,7 +577,7 @@ if (tg?.onEvent) {
 
     // scanlines
     ctx.save();
-    ctx.globalAlpha = QUALITY[quality].scanAlpha;
+    ctx.globalAlpha = q.scanAlpha;
     for (let y=0; y<H; y+= (6*dpr)){
       ctx.fillStyle = "rgba(0,0,0,0.20)";
       ctx.fillRect(0, y, W, 2*dpr);
@@ -557,8 +587,8 @@ if (tg?.onEvent) {
     // grain using noise texture
     if (img.noise){
       ctx.save();
-      ctx.globalAlpha = QUALITY[quality].grainAlpha;
-      const s = 256 * dpr * QUALITY[quality].noiseScale;
+      ctx.globalAlpha = q.grainAlpha;
+      const s = 256 * dpr * q.noiseScale;
       const oxn = (ts*0.07) % s;
       const oyn = (ts*0.05) % s;
       for (let y= -s; y<H+s; y+=s){
@@ -684,8 +714,6 @@ if (tg?.onEvent) {
     shakePower = 10*dpr*power;
     chromaUntil = ts + 280;
     chroma = 5*dpr*power;
-    rippleUntil = ts + 220;
-    rippleX = cx; rippleY = cy;
   }
 
   function hitAt(clientX, clientY){
@@ -776,9 +804,17 @@ if (tg?.onEvent) {
     quality = (quality === "MAX") ? "HIGH" : "MAX";
     qualityBtn.textContent = `Качество: ${quality}`;
     if (tg?.HapticFeedback && hapticOn) tg.HapticFeedback.selectionChanged();
+    // после смены качества — лёгкий ресайз (иногда меняется нагрузка)
+    requestAnimationFrame(resize);
   });
 
   // init
   resize();
-  loadImages().then(() => {});
+  loadImages().then(() => {
+    // финальный ресайз после загрузки ассетов (на iOS бывает нужно)
+    requestAnimationFrame(() => {
+      resize();
+      requestAnimationFrame(resize);
+    });
+  });
 })();
