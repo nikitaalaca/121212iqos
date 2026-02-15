@@ -53,40 +53,18 @@
     glow: "assets/glow.png",
     noise: "assets/noise.png",
   };
-  
+
+  // ---- Layout helpers (Telegram iOS) ----
   function applyAppHeight() {
-  const h = tg?.viewportStableHeight || window.innerHeight;
-  document.documentElement.style.setProperty("--app-h", h + "px");
-}
-
-applyAppHeight();
-
-if (tg?.onEvent) {
-  tg.onEvent("viewportChanged", () => {
-    requestAnimationFrame(() => {
-      applyAppHeight();
-      resize();
-    });
-  });
-}
-  function loadImages() {
-    const entries = Object.entries(ASSETS);
-    return Promise.all(entries.map(([k, src]) => new Promise((res) => {
-      const im = new Image();
-      im.onload = () => { img[k] = im; res(); };
-      im.onerror = () => { console.warn("asset missing:", src); res(); };
-      im.src = src;
-    })));
+    const h = tg?.viewportStableHeight || window.innerHeight;
+    document.documentElement.style.setProperty("--app-h", `${h}px`);
   }
 
-  // --- IMPORTANT: robust resize for iOS/Telegram ---
   function resize() {
     // clamp DPR for performance but keep crisp
     const raw = window.devicePixelRatio || 1;
-    dpr = Math.max(1, Math.min(2, raw)); // cap at 2 for stability
+    dpr = Math.max(1, Math.min(2, raw)); // cap at 2
 
-    // canvas MUST have correct CSS height via flex (style.css).
-    // Here we trust clientWidth/clientHeight.
     const cw = Math.max(1, Math.floor(canvas.clientWidth));
     const ch = Math.max(1, Math.floor(canvas.clientHeight));
 
@@ -106,36 +84,47 @@ if (tg?.onEvent) {
     if (prev.height !== H) prev.height = H;
   }
 
-  window.addEventListener("resize", () => {
-    requestAnimationFrame(() => {
-      resize();
-      // iOS иногда меняет layout в 2 шага
-      requestAnimationFrame(resize);
-    });
-  });
+  // IMPORTANT: рисуем превью даже когда игра не запущена
+  function renderIdle() {
+    if (running) return;
+    if (W <= 2 || H <= 2) return;
+    const ts = performance.now();
+    drawScene(ts);
+    present(ts);
+  }
 
-  // Telegram: viewportChanged (клавиатура/панели/свайпы меняют высоту)
-  if (tg?.onEvent) {
-    tg.onEvent("viewportChanged", () => {
-      requestAnimationFrame(() => {
-        resize();
-        requestAnimationFrame(resize);
-      });
+  function syncLayoutAndPaint() {
+    applyAppHeight();
+    resize();
+    renderIdle();
+    // iOS/Telegram часто меняют layout в 2 шага
+    requestAnimationFrame(() => {
+      applyAppHeight();
+      resize();
+      renderIdle();
     });
   }
 
-  // iOS Safari visualViewport тоже может менять высоту
+  // bind once
+  window.addEventListener("resize", () => requestAnimationFrame(syncLayoutAndPaint));
+
+  if (tg?.onEvent) {
+    tg.onEvent("viewportChanged", () => requestAnimationFrame(syncLayoutAndPaint));
+  }
+
   if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", () => {
-      requestAnimationFrame(() => {
-        resize();
-        requestAnimationFrame(resize);
-      });
-    });
-    window.visualViewport.addEventListener("scroll", () => {
-      // иногда Telegram дергает scroll в visualViewport -> пересчёт
-      requestAnimationFrame(resize);
-    });
+    window.visualViewport.addEventListener("resize", () => requestAnimationFrame(syncLayoutAndPaint));
+    window.visualViewport.addEventListener("scroll", () => requestAnimationFrame(syncLayoutAndPaint));
+  }
+
+  function loadImages() {
+    const entries = Object.entries(ASSETS);
+    return Promise.all(entries.map(([k, src]) => new Promise((res) => {
+      const im = new Image();
+      im.onload = () => { img[k] = im; res(); };
+      im.onerror = () => { console.warn("asset missing:", src); res(); };
+      im.src = src;
+    })));
   }
 
   // ---- Sound (tiny synth) ----
@@ -314,7 +303,7 @@ if (tg?.onEvent) {
       if (h.type) continue;
 
       if (Math.random() < pSpawn) {
-        const isSticks = Math.random() < 0.20; // more bonus, more fun
+        const isSticks = Math.random() < 0.20;
         h.type = isSticks ? "sticks" : "iqos";
         const life = (isSticks ? rand(860, 1320) : rand(680, 1120)) / intensity;
         h.until = ts + life;
@@ -721,6 +710,9 @@ if (tg?.onEvent) {
       message: `Счёт: ${score}\nРекорд: ${best}`,
       buttons: [{type:"ok"}]
     });
+
+    // после окончания снова показываем idle
+    requestAnimationFrame(renderIdle);
   }
 
   function impactFX(cx, cy, power=1.0){
@@ -819,17 +811,13 @@ if (tg?.onEvent) {
     quality = (quality === "MAX") ? "HIGH" : "MAX";
     qualityBtn.textContent = `Качество: ${quality}`;
     if (tg?.HapticFeedback && hapticOn) tg.HapticFeedback.selectionChanged();
-    // после смены качества — лёгкий ресайз (иногда меняется нагрузка)
-    requestAnimationFrame(resize);
+    requestAnimationFrame(() => { resize(); renderIdle(); });
   });
 
   // init
-  resize();
+  syncLayoutAndPaint();
   loadImages().then(() => {
-    // финальный ресайз после загрузки ассетов (на iOS бывает нужно)
-    requestAnimationFrame(() => {
-      resize();
-      requestAnimationFrame(resize);
-    });
+    // финальная подгонка + отрисовка превью
+    requestAnimationFrame(syncLayoutAndPaint);
   });
 })();
