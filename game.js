@@ -53,7 +53,22 @@
     glow: "assets/glow.png",
     noise: "assets/noise.png",
   };
+  
+  function applyAppHeight() {
+  const h = tg?.viewportStableHeight || window.innerHeight;
+  document.documentElement.style.setProperty("--app-h", h + "px");
+}
 
+applyAppHeight();
+
+if (tg?.onEvent) {
+  tg.onEvent("viewportChanged", () => {
+    requestAnimationFrame(() => {
+      applyAppHeight();
+      resize();
+    });
+  });
+}
   function loadImages() {
     const entries = Object.entries(ASSETS);
     return Promise.all(entries.map(([k, src]) => new Promise((res) => {
