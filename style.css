@@ -1,3 +1,14 @@
+:root{
+  /* высоты панелей (можно чуть подогнать) */
+  --topbar-h: 56px;
+  --progress-h: 10px;
+  --bottombar-h: 64px;
+
+  /* safe-area для iOS */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -5,63 +16,43 @@ html, body {
   background: #0f0f12;
   color: #fff;
   font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial;
+  overflow: hidden;
 }
 
-#topbar, #bottombar {
+/* важно: flex-колонка на весь экран */
+body{
+  display: flex;
+  flex-direction: column;
+  /* Telegram iOS safe area */
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+  box-sizing: border-box;
+}
+
+/* панели фиксированные по высоте */
+#topbar, #bottombar{
+  flex: 0 0 auto;
   display: flex;
   gap: 8px;
-  justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
   background: rgba(0,0,0,0.38);
   backdrop-filter: blur(10px);
 }
 
-#topbar { flex-wrap: wrap; }
-#bottombar { justify-content: center; }
-
-.pill{
-  padding: 8px 10px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.10);
-  border: 1px solid rgba(255,255,255,0.12);
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.2px;
-  user-select: none;
+#topbar{
+  min-height: var(--topbar-h);
+  flex-wrap: wrap;
+  justify-content: space-between;
 }
 
-canvas {
-  display: block;
-  width: 100%;
-  height: calc(100% - 118px);
-  touch-action: none;
-  background: radial-gradient(1200px 900px at 50% 20%, rgba(255,255,255,0.06), rgba(0,0,0,0) 60%),
-              radial-gradient(900px 700px at 70% 60%, rgba(255,255,255,0.04), rgba(0,0,0,0) 55%),
-              linear-gradient(180deg, #2a1a12, #1f140f 45%, #120c09);
+#bottombar{
+  min-height: var(--bottombar-h);
+  justify-content: center;
 }
-
-.btn{
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(255,255,255,0.08);
-  color: #fff;
-  border-radius: 14px;
-  padding: 10px 14px;
-  font-size: 15px;
-  font-weight: 650;
-}
-
-.btn:active { transform: translateY(1px); }
-
-.btn.primary{
-  background: rgba(255,255,255,0.16);
-  border-color: rgba(255,255,255,0.22);
-}
-
 
 #progress{
+  flex: 0 0 auto;
   height: 6px;
   margin: 0 12px 10px 12px;
   border-radius: 999px;
@@ -75,4 +66,46 @@ canvas {
   width: 0%;
   border-radius: 999px;
   background: rgba(255,255,255,0.40);
+}
+
+/* самое главное: canvas занимает ВСЁ оставшееся место */
+canvas{
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  /* твой фон оставляем */
+  background: radial-gradient(1200px 900px at 50% 20%, rgba(255,255,255,0.06), rgba(0,0,0,0) 60%),
+              radial-gradient(900px 700px at 70% 60%, rgba(255,255,255,0.04), rgba(0,0,0,0) 55%),
+              linear-gradient(180deg, #2a1a12, #1f140f 45%, #120c09);
+}
+
+.pill{
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.12);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  user-select: none;
+}
+
+.btn{
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-size: 15px;
+  font-weight: 650;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+
+.btn:active{ transform: translateY(1px); }
+
+.btn.primary{
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,255,255,0.22);
 }
