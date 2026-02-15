@@ -12,9 +12,9 @@
 *{ box-sizing: border-box; }
 
 html, body{
-  margin: 10;
-  padding: 10;
-  height: 85%;
+  margin: 0;
+  padding: 0;
+  height: 155%;
   width: 85%;
   overflow: hidden;
   background: #0f0f12;
