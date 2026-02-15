@@ -7,9 +7,7 @@
   --sal: env(safe-area-inset-left, 0px);
 }
 
-*{
-  box-sizing: border-box;
-}
+*{ box-sizing: border-box; }
 
 html, body{
   margin: 0;
@@ -18,89 +16,95 @@ html, body{
   height: 100%;
   overflow: hidden;
   background: #000;
+  color: #fff;
   font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial;
 }
 
+/* GRID = самый стабильный вариант в Telegram iOS */
 body{
   height: var(--app-h);
-  display: flex;
-  flex-direction: column;
-
   padding-top: var(--sat);
   padding-right: var(--sar);
   padding-bottom: var(--sab);
   padding-left: var(--sal);
+
+  display: grid;
+  grid-template-rows: auto auto 1fr auto; /* topbar, progress, canvas, bottombar */
 }
 
-/* --- TOP BAR --- */
+/* TOP */
 #topbar{
-  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
+
   background: rgba(0,0,0,0.45);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 
   flex-wrap: nowrap;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-}
 
-#topbar::-webkit-scrollbar{
-  display: none;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
 }
+#topbar::-webkit-scrollbar{ display:none; }
 
-/* --- PROGRESS --- */
+/* PROGRESS */
 #progress{
-  flex: 0 0 auto;
   height: 6px;
   margin: 6px 12px 10px 12px;
   border-radius: 999px;
   background: rgba(255,255,255,0.08);
   overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.10);
 }
-
 #progressFill{
   height: 100%;
   width: 0%;
-  background: rgba(255,255,255,0.5);
   border-radius: 999px;
+  background: rgba(255,255,255,0.50);
 }
 
-/* --- CANVAS --- */
+/* CANVAS */
 #c{
-  flex: 1 1 auto;
   width: 100%;
   height: 100%;
-  min-height: 0;
+  min-height: 0;      /* критично */
+  min-width: 0;       /* критично */
   display: block;
   touch-action: none;
+  background: #000;   /* если игра не рисует — хотя бы без серого */
 }
 
-/* --- BOTTOM BAR --- */
+/* BOTTOM */
 #bottombar{
-  flex: 0 0 auto;
   display: flex;
+  align-items: center;
   gap: 10px;
   padding: 10px 12px;
+
   background: rgba(0,0,0,0.45);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 
-  overflow-x: auto;
   flex-wrap: nowrap;
-}
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 
-#bottombar::-webkit-scrollbar{
-  display: none;
+  border-top: 1px solid rgba(255,255,255,0.08);
 }
+#bottombar::-webkit-scrollbar{ display:none; }
 
-/* --- UI --- */
 .pill{
   padding: 7px 10px;
   border-radius: 999px;
   background: rgba(255,255,255,0.12);
-  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.14);
+  font-weight: 650;
   font-size: 13px;
   white-space: nowrap;
 }
@@ -108,14 +112,11 @@ body{
 .btn{
   padding: 10px 14px;
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.2);
-  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.20);
+  background: rgba(255,255,255,0.10);
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
   white-space: nowrap;
 }
-
-.btn:active{
-  transform: translateY(1px);
-}
+.btn:active{ transform: translateY(1px); }
