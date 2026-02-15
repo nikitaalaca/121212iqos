@@ -76,6 +76,14 @@
     prev.width = W; prev.height = H;
   }
   window.addEventListener("resize", resize);
+  // Telegram: при изменении viewport пересчитать canvas
+const tg = window.Telegram?.WebApp;
+if (tg?.onEvent) {
+  tg.onEvent("viewportChanged", () => {
+    // важно: сначала браузеру дать применить новую высоту
+    requestAnimationFrame(() => resize());
+  });
+}
 
   // ---- Sound (tiny synth) ----
   let audioCtx = null;
