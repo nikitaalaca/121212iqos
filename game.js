@@ -32,9 +32,12 @@
   const qualityBtn = document.getElementById("quality");
   const progressFill = document.getElementById("progressFill");
 
+  // (опционально) если добавишь кнопку в HTML: <button id="music" class="btn">Музыка: ON</button>
+  const musicBtn = document.getElementById("music");
+
   let W = 0, H = 0, dpr = 1;
 
-  // Quality presets (MAX looks best; HIGH is safer on weak phones)
+  // Quality presets
   const QUALITY = {
     MAX:  { bloomBlur: 22, bloomAlpha: 0.92, grainAlpha: 0.10, scanAlpha: 0.11, particles: 1.0, noiseScale: 1.0, motionBlur: 0.18 },
     HIGH: { bloomBlur: 16, bloomAlpha: 0.78, grainAlpha: 0.07, scanAlpha: 0.08, particles: 0.78, noiseScale: 1.2, motionBlur: 0.12 },
@@ -54,6 +57,60 @@
     noise: "assets/noise.png",
   };
 
+  // ---- MUSIC (place your legal file here) ----
+  const MUSIC_SRC = "assets/music.mp3"; // <-- положи сюда свой mp3
+  let music = null;
+  let musicOn = true;
+  let musicTargetVol = 0.32;
+
+  function initMusic() {
+    if (music) return;
+    music = new Audio(MUSIC_SRC);
+    music.loop = true;
+    music.preload = "auto";
+    music.volume = musicTargetVol;
+    music.playsInline = true; // iOS
+  }
+
+  async function playMusic() {
+    if (!musicOn) return;
+    initMusic();
+    try { await music.play(); } catch (e) { console.warn("music play blocked:", e); }
+  }
+
+  function stopMusic() {
+    if (!music) return;
+    music.pause();
+    // music.currentTime = 0; // если хочешь сбрасывать
+  }
+
+  function tweenMusic(to, ms = 220) {
+    if (!music) return;
+    const from = music.volume;
+    const t0 = performance.now();
+    const step = () => {
+      const t = Math.min(1, (performance.now() - t0) / ms);
+      music.volume = from + (to - from) * t;
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  function duckMusic() {
+    if (!music || !musicOn) return;
+    tweenMusic(0.06, 120);
+    setTimeout(() => tweenMusic(musicTargetVol, 240), 650);
+  }
+
+  if (musicBtn) {
+    musicBtn.addEventListener("click", () => {
+      musicOn = !musicOn;
+      musicBtn.textContent = `Музыка: ${musicOn ? "ON" : "OFF"}`;
+      if (musicOn) playMusic(); else stopMusic();
+      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+    });
+  }
+
   // ---- Layout helpers (Telegram iOS) ----
   function applyAppHeight() {
     const h = tg?.viewportStableHeight || window.innerHeight;
@@ -61,9 +118,8 @@
   }
 
   function resize() {
-    // clamp DPR for performance but keep crisp
     const raw = window.devicePixelRatio || 1;
-    dpr = Math.max(1, Math.min(2, raw)); // cap at 2
+    dpr = Math.max(1, Math.min(2, raw));
 
     const cw = Math.max(1, Math.floor(canvas.clientWidth));
     const ch = Math.max(1, Math.floor(canvas.clientHeight));
@@ -84,7 +140,8 @@
     if (prev.height !== H) prev.height = H;
   }
 
-  // IMPORTANT: рисуем превью даже когда игра не запущена
+  let running = false;
+
   function renderIdle() {
     if (running) return;
     if (W <= 2 || H <= 2) return;
@@ -97,7 +154,6 @@
     applyAppHeight();
     resize();
     renderIdle();
-    // iOS/Telegram часто меняют layout в 2 шага
     requestAnimationFrame(() => {
       applyAppHeight();
       resize();
@@ -105,7 +161,6 @@
     });
   }
 
-  // bind once
   window.addEventListener("resize", () => requestAnimationFrame(syncLayoutAndPaint));
 
   if (tg?.onEvent) {
@@ -154,14 +209,11 @@
   }
 
   const sfx = {
-    hit: () => beep({ freq: 560, dur: 0.05, type: "triangle", gain: 0.06, slide: 240 }),
-    bonus: () => {
-      beep({ freq: 760, dur: 0.06, type: "square", gain: 0.045, slide: 260 });
-      setTimeout(()=>beep({freq: 1040, dur:0.07, type:"square", gain:0.04, slide:160}), 45);
-    },
-    miss: () => beep({ freq: 165, dur: 0.08, type: "sine", gain: 0.04, slide: -70 }),
+    hit:   () => beep({ freq: 560, dur: 0.05, type: "triangle", gain: 0.06, slide: 240 }),
+    bonus: () => { beep({ freq: 760, dur: 0.06, type: "square", gain: 0.045, slide: 260 }); setTimeout(()=>beep({freq: 1040, dur:0.07, type:"square", gain:0.04, slide:160}), 45); },
+    miss:  () => beep({ freq: 165, dur: 0.08, type: "sine", gain: 0.04, slide: -70 }),
     start: () => beep({ freq: 420, dur: 0.09, type: "triangle", gain: 0.05, slide: 190 }),
-    end: () => beep({ freq: 220, dur: 0.14, type: "sine", gain: 0.04, slide: -90 }),
+    end:   () => beep({ freq: 220, dur: 0.14, type: "sine", gain: 0.04, slide: -90 }),
     combo: () => beep({ freq: 860, dur: 0.06, type: "triangle", gain: 0.05, slide: 90 }),
   };
 
@@ -173,7 +225,6 @@
   ];
 
   // ---- State ----
-  let running = false;
   const durationMs = 40_000;
   let timeLeft = durationMs;
   let lastTs = 0;
@@ -277,6 +328,7 @@
 
   function triggerScreamer(strength=1.0){
     if (!screamerOn) return;
+    duckMusic(); // <-- приглушаем музыку
     const ts = now();
     screamerUntil = ts + 560;
     screamerFlash = ts + 150;
@@ -402,7 +454,6 @@
     for (const h of holes){
       const cx = h.x*W, cy=h.y*H;
 
-      // ambient shadow
       sctx.save();
       sctx.globalAlpha = 0.28;
       sctx.filter = "blur(11px)";
@@ -414,7 +465,6 @@
 
       if (img.hole) sctx.drawImage(img.hole, cx-holeSize/2, cy-holeSize/2, holeSize, holeSize);
 
-      // ring pulse
       if (h.ring > 0.02 && img.glow){
         const r = holeSize*(0.88 + h.ring*0.70);
         sctx.save();
@@ -472,7 +522,6 @@
       }
     }
 
-    // particles (trail + core)
     for (const p of particles){
       const t = p.t / p.life;
       const a = 1 - t;
@@ -501,7 +550,6 @@
       sctx.restore();
     }
 
-    // floating texts
     for (const tt of texts){
       const t = tt.t / tt.life;
       const a = 1 - t;
@@ -521,7 +569,6 @@
   function present(ts){
     const q = QUALITY[quality];
 
-    // bloom (blur scene)
     bctx.clearRect(0,0,W,H);
     bctx.save();
     bctx.globalAlpha = q.bloomAlpha;
@@ -529,7 +576,6 @@
     bctx.drawImage(scene, 0, 0);
     bctx.restore();
 
-    // temporal blur: blend previous frame
     ctx.clearRect(0,0,W,H);
 
     if (q.motionBlur > 0){
@@ -539,7 +585,6 @@
       ctx.restore();
     }
 
-    // shake + chroma
     let ox=0, oy=0;
     if (ts < shakeUntil){
       const t = (shakeUntil - ts)/520;
@@ -563,7 +608,6 @@
       ctx.drawImage(scene, 0, 0);
     }
 
-    // add bloom
     ctx.save();
     ctx.globalCompositeOperation = "screen";
     ctx.globalAlpha = 0.90;
@@ -572,14 +616,12 @@
 
     ctx.restore();
 
-    // vignette
     const vg = ctx.createRadialGradient(W*0.5, H*0.42, Math.min(W,H)*0.18, W*0.5, H*0.58, Math.max(W,H)*0.98);
     vg.addColorStop(0, "rgba(0,0,0,0)");
     vg.addColorStop(1, "rgba(0,0,0,0.60)");
     ctx.fillStyle = vg;
     ctx.fillRect(0,0,W,H);
 
-    // scanlines
     ctx.save();
     ctx.globalAlpha = q.scanAlpha;
     for (let y=0; y<H; y+= (6*dpr)){
@@ -588,7 +630,6 @@
     }
     ctx.restore();
 
-    // grain using noise texture
     if (img.noise){
       ctx.save();
       ctx.globalAlpha = q.grainAlpha;
@@ -603,7 +644,6 @@
       ctx.restore();
     }
 
-    // Screamer overlay
     if (ts < screamerUntil){
       const t = 1 - (screamerUntil - ts)/560;
       const a = (1 - t) * 0.92;
@@ -635,7 +675,6 @@
       ctx.restore();
     }
 
-    // Save current frame to prev
     pctx.clearRect(0,0,W,H);
     pctx.drawImage(canvas, 0, 0);
   }
@@ -648,7 +687,6 @@
     lastTs = ts;
     dt = clamp(dt, 0, 0.05);
 
-    // time flow with slowmo
     const slow = (ts < slowMoUntil) ? 0.55 : 1.0;
     timeLeft -= dt * 1000 * slow;
     timeEl.textContent = String(Math.max(0, Math.ceil(timeLeft/1000)));
@@ -658,7 +696,6 @@
     drawScene(ts);
     present(ts);
 
-    // rare random screamer
     if (screamerOn && Math.random() < 0.00055) triggerScreamer(0.85);
 
     if (timeLeft <= 0){
@@ -670,12 +707,18 @@
 
   function startGame(){
     running = true;
+
+    // iOS: музыка/звук должны стартовать от user gesture
+    ensureAudio();
+    playMusic();
+
     timeLeft = durationMs;
     score = 0;
     scoreEl.textContent = "0";
     setMultiplier(1, 0);
     setCombo(0);
     lastTs = 0;
+
     particles.length = 0;
     texts.length = 0;
     shakeUntil = 0;
@@ -698,6 +741,7 @@
   function endGame(){
     running = false;
     sfx.end();
+    stopMusic();
 
     if (score > best){
       best = score;
@@ -711,11 +755,10 @@
       buttons: [{type:"ok"}]
     });
 
-    // после окончания снова показываем idle
     requestAnimationFrame(renderIdle);
   }
 
-  function impactFX(cx, cy, power=1.0){
+  function impactFX(power=1.0){
     const ts = now();
     shakeUntil = ts + 190;
     shakePower = 10*dpr*power;
@@ -745,7 +788,7 @@
 
           h.justHit = now() + 220;
           h.ring = 1.0; h.ringVel = 0;
-          impactFX(cx, cy, 1.0);
+          impactFX(1.0);
 
           if (h.type === "sticks"){
             setMultiplier(2, 10_000);
@@ -787,7 +830,7 @@
     hitAt(e.clientX, e.clientY);
   });
 
-  startBtn.addEventListener("click", () => { ensureAudio(); startGame(); });
+  startBtn.addEventListener("click", () => startGame());
 
   hapticBtn.addEventListener("click", () => {
     hapticOn = !hapticOn;
@@ -816,8 +859,5 @@
 
   // init
   syncLayoutAndPaint();
-  loadImages().then(() => {
-    // финальная подгонка + отрисовка превью
-    requestAnimationFrame(syncLayoutAndPaint);
-  });
+  loadImages().then(() => requestAnimationFrame(syncLayoutAndPaint));
 })();
